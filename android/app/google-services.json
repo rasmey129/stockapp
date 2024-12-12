@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "164017588711",
+    "project_id": "stockmarket-5d5a2",
+    "storage_bucket": "stockmarket-5d5a2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:164017588711:android:393b07d389e90475095542",
+        "android_client_info": {
+          "package_name": "com.example.stockapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnUqUxrk2soBixFlVlBZgBzC9MfcOjANI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
