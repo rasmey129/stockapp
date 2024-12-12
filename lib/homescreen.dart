@@ -14,9 +14,9 @@ class _HomePageState extends State<HomePage> {
 
   static List<Widget> _pages = <Widget>[
     MarketPage(),
+    WatchlistPage(),
     NewsfeedPage(),
     SettingsPage(),
-    WatchlistPage()
   ];
 
   void _onItemTapped(int index) {
