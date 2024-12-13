@@ -21,7 +21,6 @@ class RegisterPage extends StatelessWidget {
           email: _emailController.text,
           password: _passwordController.text,
         );
-        // Redirect to HomePage after successful registration
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomePage()),
