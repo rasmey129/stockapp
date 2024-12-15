@@ -1,91 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'login.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login.dart';
 
 class SettingsPage extends StatefulWidget {
-  @override
-  _SettingsPageState createState() => _SettingsPageState();
+ @override
+ _SettingsPageState createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool _notificationsEnabled = true;
+ String username = 'Username'; 
 
-  void _toggleNotifications(bool value) {
-    setState(() {
-      _notificationsEnabled = value;
-    });
-  }
+ @override
+ void initState() {
+   super.initState();
+   _loadUsername();
+ }
 
-  Future<void> _handleSignOut() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
+ Future<void> _loadUsername() async {
+   final user = FirebaseAuth.instance.currentUser;
+   if (user != null && user.email != null) {
+     setState(() {
+       username = user.email!.split('@')[0];
+     });
+   }
+ }
 
-    try {
-      // Clear stored user data
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+ Future<void> _handleLogout() async {
+   try {
+     await FirebaseAuth.instance.signOut();
+     Navigator.of(context).pushAndRemoveUntil(
+       MaterialPageRoute(builder: (context) => LoginPage()),
+       (Route<dynamic> route) => false,
+     );
+   } catch (e) {
+     ScaffoldMessenger.of(context).showSnackBar(
+       SnackBar(content: Text('Failed to logout. Please try again.')),
+     );
+   }
+ }
 
-      // Add any other sign out logic here, for example:
-      // await firebaseAuth.signOut();
-      // await googleSignIn.signOut();
-
-      // Pop loading dialog
-      Navigator.of(context).pop();
-
-      // Navigate to login page and clear navigation stack
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => LoginPage()),
-        (Route<dynamic> route) => false,
-      );
-    } catch (e) {
-      // Pop loading dialog
-      Navigator.of(context).pop();
-      
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to sign out. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Settings'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SwitchListTile(
-              title: Text('Enable Notifications'),
-              subtitle: Text(_notificationsEnabled ? 'Enabled' : 'Disabled'),
-              value: _notificationsEnabled,
-              onChanged: _toggleNotifications,
-            ),
-            Divider(height: 32),
-            TextButton(
-              onPressed: _handleSignOut,
-              child: Text(
-                'Sign Out',
-                style: TextStyle(fontSize: 18, color: Colors.red),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+ @override
+ Widget build(BuildContext context) {
+   return Scaffold(
+     appBar: AppBar(
+       title: Text('Profile'),
+       backgroundColor: Colors.blue,
+       elevation: 0,
+     ),
+     body: Center(
+       child: Column(
+         children: [
+           SizedBox(height: 40),
+           Container(
+             width: 100,
+             height: 100,
+             decoration: BoxDecoration(
+               shape: BoxShape.circle,
+               border: Border.all(
+                 color: Colors.black,
+                 width: 2,
+               ),
+             ),
+             child: Icon(
+               Icons.person_outline,
+               size: 60,
+             ),
+           ),
+           SizedBox(height: 20),
+           Text(
+             'Hello $username',
+             style: TextStyle(
+               fontSize: 20,
+               fontWeight: FontWeight.bold,
+             ),
+           ),
+           Spacer(),
+           Padding(
+             padding: const EdgeInsets.all(20.0),
+             child: SizedBox(
+               width: double.infinity,
+               height: 45,
+               child: ElevatedButton(
+                 onPressed: _handleLogout,
+                 style: ElevatedButton.styleFrom(
+                   backgroundColor: Colors.blue,
+                 ),
+                 child: Text('Logout'),
+               ),
+             ),
+           ),
+         ],
+       ),
+     ),
+   );
+ }
 }

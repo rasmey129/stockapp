@@ -92,7 +92,7 @@ class LoginPage extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                   ),
-                  child: Text('LOGIN'),
+                  child: Text('Login'),
                 ),
               ),
               SizedBox(height: 15),
