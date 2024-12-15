@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'stock_search.dart';
+import 'stockdetail.dart';
 
 class MarketPage extends StatefulWidget {
   final String userId;  
@@ -178,8 +179,8 @@ Widget build(BuildContext context) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => StockSearchPage(
-                                  initialSymbol: stock['symbol'] ?? '',
+                                builder: (context) => StockDetailsPage(
+                                  symbol: stock['symbol'] ?? '',
                                   userId: widget.userId,
                                 ),
                               ),

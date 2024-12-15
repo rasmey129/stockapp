@@ -61,14 +61,12 @@ class _StockSearchPageState extends State<StockSearchPage> {
 
     try {
       if (isInWatchlist) {
-        // Remove from watchlist
         await docRef.delete();
         setState(() {
           isInWatchlist = false;
         });
         showSnackBar('Removed from watchlist');
       } else {
-        // Add to watchlist
         await docRef.set({
           'symbol': stockQuote!['symbol'],
           'name': stockQuote!['name'] ?? stockQuote!['symbol'],
@@ -99,13 +97,11 @@ class _StockSearchPageState extends State<StockSearchPage> {
         'X-Finnhub-Token': apiKey,
       };
 
-      // Fetch quote
       final quoteResponse = await http.get(
         Uri.parse('https://finnhub.io/api/v1/quote?symbol=${symbol.toUpperCase()}'),
         headers: headers,
       );
 
-      // Fetch company info
       final companyResponse = await http.get(
         Uri.parse('https://finnhub.io/api/v1/search?q=${symbol.toUpperCase()}'),
         headers: headers,
@@ -130,7 +126,6 @@ class _StockSearchPageState extends State<StockSearchPage> {
           };
         });
 
-        // Fetch candle data
         final now = DateTime.now();
         final fiveDaysAgo = now.subtract(Duration(days: 5));
         final candleResponse = await http.get(

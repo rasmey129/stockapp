@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'stock_search.dart';
+import 'stockdetail.dart';
 
 class WatchlistPage extends StatelessWidget {
   final String userId;
-
   const WatchlistPage({Key? key, required this.userId}) : super(key: key);
 
   @override
@@ -18,18 +18,16 @@ class WatchlistPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
-            .doc(userId)
+            .doc(userId)  
             .collection('watchlist')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           }
-
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(child: Text('Your watchlist is empty'));
           }
-
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: ListView.builder(
@@ -37,19 +35,20 @@ class WatchlistPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 final stock = snapshot.data!.docs[index].data() as Map<String, dynamic>;
                 final isPositive = stock['change'].toString().startsWith('+');
-
                 return Card(
                   margin: EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => StockSearchPage(
-                          initialSymbol: stock['symbol'],
-                          userId: userId,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StockDetailsPage(
+                            symbol: stock['symbol'],
+                            userId: userId,  
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                     leading: Icon(
                       isPositive ? Icons.trending_up : Icons.trending_down,
                       color: isPositive ? Colors.green : Colors.red,
