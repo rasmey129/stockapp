@@ -24,6 +24,14 @@ class StockTrackerApp extends StatelessWidget {
 class AuthenticationWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return FirebaseAuth.instance.currentUser == null ? LoginPage() : HomePage();
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return HomePage(userId: snapshot.data!.uid);
+        }
+        return LoginPage();
+      },
+    );
   }
 }

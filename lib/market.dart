@@ -4,6 +4,13 @@ import 'package:http/http.dart' as http;
 import 'stock_search.dart';
 
 class MarketPage extends StatefulWidget {
+  final String userId;  // Add this
+
+  const MarketPage({
+    Key? key,
+    required this.userId,  // Add this
+  }) : super(key: key);
+
   @override
   _MarketPageState createState() => _MarketPageState();
 }
@@ -167,10 +174,11 @@ class _MarketPageState extends State<MarketPage> {
                               MaterialPageRoute(
                                 builder: (context) => StockSearchPage(
                                   initialSymbol: stock['symbol'] ?? '',
+                                  userId: widget.userId, // Add this
                                 ),
                               ),
                             );
-                          },
+                        },
                           leading: Icon(
                             isPositive ? Icons.trending_up : Icons.trending_down,
                             color: isPositive ? Colors.green : Colors.red,

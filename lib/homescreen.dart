@@ -5,19 +5,31 @@ import 'newsfeed.dart';
 import 'settings.dart';
 
 class HomePage extends StatefulWidget {
+  final String userId;  
+
+  const HomePage({
+    Key? key,
+    required this.userId,
+  }) : super(key: key);
+
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  late List<Widget> _pages; 
 
-  static List<Widget> _pages = <Widget>[
-    MarketPage(),
-    WatchlistPage(),
-    NewsfeedPage(),
-    SettingsPage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pages = <Widget>[
+      MarketPage(userId: widget.userId),
+      WatchlistPage(userId: widget.userId),
+      NewsfeedPage(),
+      SettingsPage(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -29,7 +41,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Stock Tracker')),
-      body: _pages[_selectedIndex],
+      body: _pages[_selectedIndex],  
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -52,6 +64,7 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _selectedIndex,
         selectedItemColor: const Color.fromARGB(255, 13, 153, 240),
         onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed, 
       ),
     );
   }

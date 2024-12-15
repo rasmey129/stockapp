@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
+import 'watchlist.dart';
 
 class StockSearchPage extends StatefulWidget {
+  final String userId;
   final String initialSymbol;
 
-  const StockSearchPage({Key? key, required this.initialSymbol}) : super(key: key);
+  const StockSearchPage({
+    Key? key,
+    required this.userId,
+    required this.initialSymbol,
+  }) : super(key: key);
 
   @override
   _StockSearchPageState createState() => _StockSearchPageState();
 }
 
 class _StockSearchPageState extends State<StockSearchPage> {
-  final String apiKey = 'cte9chpr01qt478lddkgcte9chpr01qt478lddl0';
+  final String apiKey = 'cte9chpr01qt478lddkgcte9chpr01qt478lddl0';  
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   TextEditingController searchController = TextEditingController();
   Map<String, dynamic>? stockQuote;
   List<FlSpot> candleData = [];
   bool isLoading = false;
-  DateTime? lastRequestTime;
-  int requestCount = 0;
-  static const int MAX_REQUESTS_PER_MINUTE = 30; 
+  bool isInWatchlist = false;
 
   @override
   void initState() {
@@ -31,46 +37,57 @@ class _StockSearchPageState extends State<StockSearchPage> {
     }
   }
 
-  Future<bool> checkRateLimit() async {
-    final now = DateTime.now();
-    
-    if (lastRequestTime != null && 
-        now.difference(lastRequestTime!).inMinutes >= 1) {
-      requestCount = 0;
-    }
-    if (requestCount >= MAX_REQUESTS_PER_MINUTE) {
-      throw Exception('Rate limit reached. Please wait a minute before trying again.');
-    }
-    if (lastRequestTime != null) {
-      final difference = now.difference(lastRequestTime!);
-      if (difference.inSeconds < 1) {
-        await Future.delayed(Duration(seconds: 1));
-      }
-    }
+  Future<void> checkWatchlistStatus(String symbol) async {
+    final docRef = _firestore
+        .collection('users')
+        .doc(widget.userId)
+        .collection('watchlist')
+        .doc(symbol.toUpperCase());
 
-    lastRequestTime = now;
-    requestCount++;
-    return true;
+    final docSnapshot = await docRef.get();
+    setState(() {
+      isInWatchlist = docSnapshot.exists;
+    });
   }
 
-  bool isValidUSSymbol(String symbol) {
-    final pattern = RegExp(r'^[A-Z]{1,5}$');
-    return pattern.hasMatch(symbol);
+  Future<void> toggleWatchlist() async {
+    if (stockQuote == null) return;
+
+    final docRef = _firestore
+        .collection('users')
+        .doc(widget.userId)
+        .collection('watchlist')
+        .doc(stockQuote!['symbol']);
+
+    try {
+      if (isInWatchlist) {
+        // Remove from watchlist
+        await docRef.delete();
+        setState(() {
+          isInWatchlist = false;
+        });
+        showSnackBar('Removed from watchlist');
+      } else {
+        // Add to watchlist
+        await docRef.set({
+          'symbol': stockQuote!['symbol'],
+          'name': stockQuote!['name'] ?? stockQuote!['symbol'],
+          'price': stockQuote!['c'].toStringAsFixed(2),
+          'change': '${stockQuote!['dp'] >= 0 ? '+' : ''}${stockQuote!['dp'].toStringAsFixed(2)}%',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        setState(() {
+          isInWatchlist = true;
+        });
+        showSnackBar('Added to watchlist');
+      }
+    } catch (e) {
+      print('Error toggling watchlist: $e');
+      showErrorSnackBar('Failed to update watchlist');
+    }
   }
 
   Future<void> fetchStockData(String symbol) async {
-    symbol = symbol.trim().toUpperCase();
-    
-    if (symbol.isEmpty) {
-      showErrorSnackBar('Please enter a stock symbol');
-      return;
-    }
-
-    if (!isValidUSSymbol(symbol)) {
-      showErrorSnackBar('Invalid symbol format. Please enter a valid US stock symbol (1-5 letters)');
-      return;
-    }
-
     setState(() {
       isLoading = true;
       stockQuote = null;
@@ -78,74 +95,74 @@ class _StockSearchPageState extends State<StockSearchPage> {
     });
 
     try {
-      await checkRateLimit();
-
       final headers = {
         'X-Finnhub-Token': apiKey,
       };
 
+      // Fetch quote
       final quoteResponse = await http.get(
-        Uri.parse('https://finnhub.io/api/v1/quote?symbol=$symbol'),
+        Uri.parse('https://finnhub.io/api/v1/quote?symbol=${symbol.toUpperCase()}'),
         headers: headers,
       );
 
-      if (quoteResponse.statusCode == 429) {
-        throw Exception('Free API limit reached. Please try again in a minute.');
-      }
-
-      final quoteData = json.decode(quoteResponse.body);
-      
-      if (quoteData['c'] == 0 && quoteData['h'] == 0 && quoteData['l'] == 0) {
-        throw Exception('Symbol not found or not supported in free tier. Please enter a valid US stock symbol.');
-      }
-
-      await checkRateLimit();
+      // Fetch company info
       final companyResponse = await http.get(
-        Uri.parse('https://finnhub.io/api/v1/search?q=$symbol'),
+        Uri.parse('https://finnhub.io/api/v1/search?q=${symbol.toUpperCase()}'),
         headers: headers,
       );
 
-      String companyName = symbol;
-      if (companyResponse.statusCode == 200) {
+      if (quoteResponse.statusCode == 200 && companyResponse.statusCode == 200) {
+        final quoteData = json.decode(quoteResponse.body);
         final companyData = json.decode(companyResponse.body);
+
+        String companyName = symbol.toUpperCase();
         if (companyData['result'] != null && companyData['result'].isNotEmpty) {
-          companyName = companyData['result'][0]['description'] ?? symbol;
+          companyName = companyData['result'][0]['description'] ?? symbol.toUpperCase();
         }
+
+        await checkWatchlistStatus(symbol);
+
+        setState(() {
+          stockQuote = {
+            ...quoteData,
+            'symbol': symbol.toUpperCase(),
+            'name': companyName,
+          };
+        });
+
+        // Fetch candle data
+        final now = DateTime.now();
+        final fiveDaysAgo = now.subtract(Duration(days: 5));
+        final candleResponse = await http.get(
+          Uri.parse(
+            'https://finnhub.io/api/v1/stock/candle?symbol=${symbol.toUpperCase()}'
+            '&resolution=D'
+            '&from=${fiveDaysAgo.millisecondsSinceEpoch ~/ 1000}'
+            '&to=${now.millisecondsSinceEpoch ~/ 1000}',
+          ),
+          headers: headers,
+        );
+
+        if (candleResponse.statusCode == 200) {
+          final candleResponseData = json.decode(candleResponse.body);
+          if (candleResponseData['c'] != null) {
+            setState(() {
+              candleData = List.generate(
+                candleResponseData['c'].length,
+                (index) => FlSpot(
+                  index.toDouble(),
+                  candleResponseData['c'][index].toDouble(),
+                ),
+              );
+            });
+          }
+        }
+      } else {
+        throw Exception('Failed to fetch stock data');
       }
-      await checkRateLimit();
-      final now = DateTime.now();
-      final fiveDaysAgo = now.subtract(Duration(days: 5));
-      final candleResponse = await http.get(
-        Uri.parse(
-          'https://finnhub.io/api/v1/stock/candle?symbol=$symbol'
-          '&resolution=D'
-          '&from=${fiveDaysAgo.millisecondsSinceEpoch ~/ 1000}'
-          '&to=${now.millisecondsSinceEpoch ~/ 1000}',
-        ),
-        headers: headers,
-      );
-
-      final candleResponseData = json.decode(candleResponse.body);
-
-      setState(() {
-        stockQuote = {
-          ...quoteData,
-          'name': companyName,
-        };
-
-        if (candleResponseData['s'] == 'ok' && candleResponseData['c'] != null) {
-          candleData = List.generate(
-            candleResponseData['c'].length,
-            (index) => FlSpot(
-              index.toDouble(),
-              candleResponseData['c'][index].toDouble(),
-            ),
-          );
-        }
-      });
     } catch (e) {
       print('Error: $e');
-      showErrorSnackBar(e.toString());
+      showErrorSnackBar('An error occurred while fetching data');
     } finally {
       setState(() {
         isLoading = false;
@@ -157,7 +174,17 @@ class _StockSearchPageState extends State<StockSearchPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: Duration(seconds: 4),
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -167,10 +194,22 @@ class _StockSearchPageState extends State<StockSearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(),
-        title: Text('US Stock Search (Free)'),
+        title: Text('Stock Search'),
         backgroundColor: Colors.blue,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => WatchlistPage(userId: widget.userId),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -183,18 +222,18 @@ class _StockSearchPageState extends State<StockSearchPage> {
                 prefixIcon: Icon(Icons.search),
                 suffixIcon: IconButton(
                   icon: Icon(Icons.send),
-                  onPressed: () => fetchStockData(searchController.text),
+                  onPressed: () => fetchStockData(searchController.text.trim()),
                 ),
-                hintText: '',
-                helperText: 'Free tier: US stocks only, limited to 60 requests/minute',
+                hintText: 'Enter US stock symbol (e.g., AAPL)',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               textCapitalization: TextCapitalization.characters,
-              onSubmitted: (value) => fetchStockData(value),
+              onSubmitted: (value) => fetchStockData(value.trim()),
             ),
             SizedBox(height: 16),
+
             if (isLoading)
               Center(child: CircularProgressIndicator())
             else if (stockQuote != null) ...[
@@ -203,7 +242,7 @@ class _StockSearchPageState extends State<StockSearchPage> {
                   Icon(Icons.show_chart),
                   SizedBox(width: 8),
                   Text(
-                    searchController.text.toUpperCase(),
+                    stockQuote!['symbol'],
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(width: 8),
@@ -214,8 +253,16 @@ class _StockSearchPageState extends State<StockSearchPage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  IconButton(
+                    icon: Icon(
+                      isInWatchlist ? Icons.star : Icons.star_border,
+                      color: isInWatchlist ? Colors.amber : null,
+                    ),
+                    onPressed: toggleWatchlist,
+                  ),
                 ],
               ),
+
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.all(16),
@@ -229,13 +276,19 @@ class _StockSearchPageState extends State<StockSearchPage> {
                   children: [
                     Text(
                       '\$${stockQuote!['c']?.toStringAsFixed(2) ?? '--'}',
-                      style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'Change: ${(stockQuote!['dp'] ?? 0).toStringAsFixed(2)}%',
                       style: TextStyle(
-                        color: (stockQuote!['dp'] ?? 0) >= 0 ? Colors.green[100] : Colors.red[100],
+                        color: (stockQuote!['dp'] ?? 0) >= 0
+                            ? Colors.green[100]
+                            : Colors.red[100],
                         fontSize: 16,
                       ),
                     ),
@@ -246,6 +299,7 @@ class _StockSearchPageState extends State<StockSearchPage> {
                   ],
                 ),
               ),
+
               if (candleData.isNotEmpty)
                 Card(
                   child: Padding(
@@ -291,7 +345,7 @@ class _StockSearchPageState extends State<StockSearchPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Enter a US stock symbol to view data.',
+                      'Enter a stock symbol to view data.',
                       style: TextStyle(fontSize: 16),
                     ),
                     SizedBox(height: 8),
