@@ -40,7 +40,6 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Stock Tracker')),
       body: _pages[_selectedIndex],  
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[

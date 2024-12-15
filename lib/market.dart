@@ -4,11 +4,11 @@ import 'package:http/http.dart' as http;
 import 'stock_search.dart';
 
 class MarketPage extends StatefulWidget {
-  final String userId;  // Add this
+  final String userId;  
 
   const MarketPage({
     Key? key,
-    required this.userId,  // Add this
+    required this.userId,  
   }) : super(key: key);
 
   @override
@@ -134,84 +134,125 @@ class _MarketPageState extends State<MarketPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Market'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Search for stocks',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text('Market'),
+      backgroundColor: Colors.blue,
+      elevation: 0,
+    ),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Search for stocks...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-              onChanged: (value) {
-                searchStocks(value);
-              },
             ),
-            SizedBox(height: 16),
-            isLoading
-                ? Center(child: CircularProgressIndicator())
-                : Expanded(
-                    child: ListView.builder(
-                      itemCount: stocks.length,
-                      itemBuilder: (context, index) {
-                        final stock = stocks[index];
-                        final price = stockPrices[stock['symbol']];
-                        final currentPrice = price != null ? price['c']?.toStringAsFixed(2) : 'N/A';
-                        final priceChange = price != null ? price['dp']?.toStringAsFixed(2) : 'N/A';
-                        final isPositive = price != null ? (price['dp'] ?? 0) >= 0 : false;
+            onChanged: (value) {
+              searchStocks(value);
+            },
+          ),
+          SizedBox(height: 16),
+          isLoading
+              ? Center(child: CircularProgressIndicator())
+              : Expanded(
+                  child: ListView.builder(
+                    itemCount: stocks.length,
+                    itemBuilder: (context, index) {
+                      final stock = stocks[index];
+                      final price = stockPrices[stock['symbol']];
+                      final currentPrice = price != null ? price['c']?.toStringAsFixed(2) : 'N/A';
+                      final priceChange = price != null ? price['dp']?.toStringAsFixed(2) : 'N/A';
+                      final isPositive = price != null ? (price['dp'] ?? 0) >= 0 : false;
 
-                        return ListTile(
+                      return Card(
+                        margin: EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => StockSearchPage(
                                   initialSymbol: stock['symbol'] ?? '',
-                                  userId: widget.userId, // Add this
+                                  userId: widget.userId,
                                 ),
                               ),
                             );
-                        },
-                          leading: Icon(
-                            isPositive ? Icons.trending_up : Icons.trending_down,
-                            color: isPositive ? Colors.green : Colors.red,
+                          },
+                          leading: Container(
+                            decoration: BoxDecoration(
+                              color: isPositive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: EdgeInsets.all(8),
+                            child: Icon(
+                              isPositive ? Icons.trending_up : Icons.trending_down,
+                              color: isPositive ? Colors.green : Colors.red,
+                            ),
                           ),
-                          title: Text(stock['description'] ?? 'N/A'),
-                          subtitle: Text('Symbol: ${stock['symbol'] ?? 'N/A'}'),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          title: Row(
                             children: [
                               Text(
-                                '\$$currentPrice',
+                                stock['symbol'] ?? 'N/A',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
-                              Text(
-                                '$priceChange%',
-                                style: TextStyle(
-                                  color: isPositive ? Colors.green : Colors.red,
-                                  fontSize: 14,
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  stock['description'] ?? 'N/A',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 14,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
+                          subtitle: Container(
+                            margin: EdgeInsets.only(top: 8),
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '\$$currentPrice',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  '$priceChange%',
+                                  style: TextStyle(
+                                    color: isPositive ? Colors.green[100] : Colors.red[100],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-          ],
-        ),
+                ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
